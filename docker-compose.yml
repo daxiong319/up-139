@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  up-139:
+    build: .
+    container_name: up-139
+    ports:
+      - "33303:33303"
+    volumes:
+      # 持久化数据
+      - ./data:/app/data
+      - ./backend/media_monitor.log:/app/backend/media_monitor.log
+      - ./backend/processed_torrents.json:/app/backend/processed_torrents.json
+      - ./backend/media_monitor_notify.txt:/app/backend/media_monitor_notify.txt
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    networks:
+      - up139-network
+
+networks:
+  up139-network:
+    driver: bridge
