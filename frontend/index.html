@@ -3,6 +3,763 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UP-139 媒体上传监控 v2.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1600px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header h1 { color: #333; font-size: 28px; margin-bottom: 10px; }
+        .header p { color: #666; font-size: 14px; }
+        
+        .tabs {
+            background: white;
+            border-radius: 16px;
+            padding: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .tab:hover { background: #e0e0e0; }
+        .tab.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        
+        .panel {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .panel-title { font-size: 20px; font-weight: 600; color: #333; }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-warning { background: #f39c12; color: white; }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-radius: 16px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status-indicator { display: flex; align-items: center; gap: 10px; }
+        .status-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #e74c3c; animation: pulse 2s infinite;
+        }
+        .status-dot.running { background: #27ae60; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .status-text { font-size: 16px; font-weight: 600; color: #333; }
+        .controls { display: flex; gap: 10px; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .stat-value { font-size: 32px; font-weight: 700; margin-bottom: 5px; }
+        .stat-label { font-size: 12px; opacity: 0.9; }
+        
+        .torrent-list { max-height: 600px; overflow-y: auto; }
+        .torrent-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+        .torrent-item:hover { background: #e9ecef; }
+        .torrent-item.selected { background: #d4edda; border-left-color: #27ae60; }
+        .torrent-name { font-weight: 600; color: #333; margin-bottom: 5px; }
+        .torrent-info { font-size: 12px; color: #666; }
+        .torrent-actions { margin-top: 10px; display: flex; gap: 10px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-input:focus, .form-select:focus { border-color: #667eea; outline: none; }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .history-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .history-name { font-weight: 600; margin-bottom: 8px; }
+        .history-status {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        
+        .disk-bar {
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .disk-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #f39c12, #e74c3c);
+            transition: width 0.5s;
+        }
+        
+        .checkbox { margin-right: 10px; }
+        
+        .hidden { display: none; }
+        
+        .config-card {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .config-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .config-name { font-weight: 600; font-size: 16px; }
+        .config-actions { display: flex; gap: 10px; }
+        
+        @media (max-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 UP-139 媒体上传监控 v2.0</h1>
+            <p>全功能媒体管理：种子可视化、智能上传、磁盘监控、历史记录追踪</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">停止状态</span>
+            </div>
+            <div class="controls">
+                <button class="btn btn-success" onclick="startMonitor()">▶ 启动</button>
+                <button class="btn btn-danger" onclick="stopMonitor()">⏹ 停止</button>
+                <button class="btn btn-warning" onclick="restartMonitor()">🔄 重启</button>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('torrents')">📥 种子管理</button>
+            <button class="tab" onclick="switchTab('upload')">☁️ 上传历史</button>
+            <button class="tab" onclick="switchTab('config')">⚙️ 配置管理</button>
+            <button class="tab" onclick="switchTab('disk')">💾 磁盘监控</button>
+            <button class="tab" onclick="switchTab('logs')">📋 实时日志</button>
+        </div>
+        
+        <!-- 种子管理 -->
+        <div id="tab-torrents" class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📥 qBittorrent种子管理</span>
+                <div>
+                    <button class="btn btn-primary" onclick="refreshTorrents()">🔄 刷新</button>
+                    <button class="btn btn-success" onclick="uploadSelected()">☁️ 上传选中</button>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">0</div>
+                    <div class="stat-label">总种子数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-downloading">0</div>
+                    <div class="stat-label">下载中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-completed">0</div>
+                    <div class="stat-label">已完成</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-seeding">0</div>
+                    <div class="stat-label">做种中</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <select class="form-select" id="filterSelect" onchange="filterTorrents()" style="width: 200px;">
+                    <option value="">全部种子</option>
+                    <option value="downloading">下载中</option>
+                    <option value="completed">已完成</option>
+                    <option value="seeding">做种中</option>
+                </select>
+            </div>
+            
+            <div class="torrent-list" id="torrentList">
+                <div style="text-align: center; padding: 40px; color: #999;">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 上传历史 -->
+        <div id="tab-upload" class="panel hidden">
+            <div class="panel-header">
+                <span class="panel-title">☁️ 上传历史记录</span>
+                <button class="btn btn-primary" onclick="refreshHistory()">🔄 刷新</button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="hist-total">0</div>
+                    <div class="stat-label">总记录</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hist-success">0</div>
+                    <div class="stat-label">上传成功</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hist-exists">0</div>
+                    <div class="stat-label">云盘已存在</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hist-complete">0</div>
+                    <div class="stat-label">完整链路</div>
+                </div>
+            </div>
+            
+            <div id="historyList" style="max-height: 600px; overflow-y: auto;">
+                <div style="text-align: center; padding: 40px; color: #999;">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 配置管理 -->
+        <div id="tab-config" class="panel hidden">
+            <div class="panel-header">
+                <span class="panel-title">⚙️ 配置管理</span>
+            </div>
+            
+            <h3 style="margin-bottom: 15px;">qBittorrent配置</h3>
+            <div id="qbConfigList"></div>
+            <button class="btn btn-primary" onclick="showAddQBForm()" style="margin-top: 10px;">➕ 添加qBittorrent</button>
+            
+            <h3 style="margin: 30px 0 15px;">Alist配置</h3>
+            <div id="alistConfigList"></div>
+            <button class="btn btn-primary" onclick="showAddAlistForm()" style="margin-top: 10px;">➕ 添加Alist</button>
+            
+            <h3 style="margin: 30px 0 15px;">系统设置</h3>
+            <div class="form-group">
+                <label class="form-label">做种时间（小时）</label>
+                <input type="number" class="form-input" id="seedHours" value="72">
+            </div>
+            <div class="form-group">
+                <label class="form-label">磁盘阈值（GB）</label>
+                <input type="number" class="form-input" id="diskThreshold" value="50">
+            </div>
+            <div class="form-group">
+                <label class="form-label">监控间隔（秒）</label>
+                <input type="number" class="form-input" id="monitorInterval" value="60">
+            </div>
+            <button class="btn btn-success" onclick="saveSystemConfig()">💾 保存配置</button>
+        </div>
+        
+        <!-- 磁盘监控 -->
+        <div id="tab-disk" class="panel hidden">
+            <div class="panel-header">
+                <span class="panel-title">💾 磁盘空间监控</span>
+                <button class="btn btn-primary" onclick="refreshDisk()">🔄 刷新</button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="disk-total">-</div>
+                    <div class="stat-label">总容量(GB)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="disk-used">-</div>
+                    <div class="stat-label">已使用(GB)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="disk-free">-</div>
+                    <div class="stat-label">剩余(GB)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="disk-percent">-</div>
+                    <div class="stat-label">使用率</div>
+                </div>
+            </div>
+            
+            <div class="disk-bar">
+                <div class="disk-fill" id="diskFill" style="width: 0%"></div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-danger" onclick="autoCleanup()">🗑️ 自动清理空间</button>
+            </div>
+        </div>
+        
+        <!-- 实时日志 -->
+        <div id="tab-logs" class="panel hidden">
+            <div class="panel-header">
+                <span class="panel-title">📋 实时日志</span>
+                <div>
+                    <button class="btn btn-primary" onclick="refreshLogs()">🔄 刷新</button>
+                    <button class="btn btn-danger" onclick="clearLogs()">🗑️ 清空</button>
+                </div>
+            </div>
+            <div class="log-container" id="logContainer">
+                <div style="text-align: center; padding: 40px; color: #999;">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let allTorrents = [];
+        let selectedTorrents = new Set();
+        
+        // Tab切换
+        function switchTab(tabName) {
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (tabName === 'torrents') refreshTorrents();
+            if (tabName === 'upload') refreshHistory();
+            if (tabName === 'config') loadConfigs();
+            if (tabName === 'disk') refreshDisk();
+            if (tabName === 'logs') refreshLogs();
+        }
+        
+        // 状态管理
+        async function getStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                updateStatus(data.running);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        
+        function updateStatus(running) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            if (running) {
+                dot.classList.add('running');
+                text.textContent = '运行中';
+            } else {
+                dot.classList.remove('running');
+                text.textContent = '停止状态';
+            }
+        }
+        
+        async function startMonitor() {
+            const res = await fetch('/api/start', { method: 'POST' });
+            const data = await res.json();
+            alert(data.message);
+            getStatus();
+        }
+        
+        async function stopMonitor() {
+            const res = await fetch('/api/stop', { method: 'POST' });
+            const data = await res.json();
+            alert(data.message);
+            getStatus();
+        }
+        
+        async function restartMonitor() {
+            const res = await fetch('/api/restart', { method: 'POST' });
+            const data = await res.json();
+            alert(data.message);
+            getStatus();
+        }
+        
+        // 种子管理
+        async function refreshTorrents() {
+            try {
+                const filter = document.getElementById('filterSelect').value;
+                const url = filter ? `/api/qb/torrents?filter=${filter}` : '/api/qb/torrents';
+                const res = await fetch(url);
+                const data = await res.json();
+                allTorrents = data.torrents || [];
+                displayTorrents(allTorrents);
+                updateTorrentStats();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        
+        function displayTorrents(torrents) {
+            const list = document.getElementById('torrentList');
+            if (!torrents || torrents.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">暂无种子</div>';
+                return;
+            }
+            
+            list.innerHTML = torrents.map(t => `
+                <div class="torrent-item ${selectedTorrents.has(t.hash) ? 'selected' : ''}" onclick="toggleTorrent('${t.hash}')">
+                    <div class="torrent-name">
+                        <input type="checkbox" class="checkbox" ${selectedTorrents.has(t.hash) ? 'checked' : ''}>
+                        ${t.name}
+                    </div>
+                    <div class="torrent-info">
+                        大小: ${(t.size / (1024**3)).toFixed(2)} GB | 
+                        进度: ${(t.progress * 100).toFixed(1)}% | 
+                        状态: ${t.state} | 
+                        做种时间: ${(t.seeding_time / 3600).toFixed(1)} 小时
+                    </div>
+                    <div class="torrent-actions">
+                        <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); uploadSingle('${t.hash}', '${t.name.replace(/'/g, "\\'")}', ${t.size})">☁️ 上传</button>
+                        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteTorrent('${t.hash}')">🗑️ 删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function toggleTorrent(hash) {
+            if (selectedTorrents.has(hash)) {
+                selectedTorrents.delete(hash);
+            } else {
+                selectedTorrents.add(hash);
+            }
+            refreshTorrents();
+        }
+        
+        function updateTorrentStats() {
+            document.getElementById('stat-total').textContent = allTorrents.length;
+            document.getElementById('stat-downloading').textContent = allTorrents.filter(t => t.state === 'downloading').length;
+            document.getElementById('stat-completed').textContent = allTorrents.filter(t => t.state === 'completed').length;
+            document.getElementById('stat-seeding').textContent = allTorrents.filter(t => t.state === 'seeding').length;
+        }
+        
+        function filterTorrents() {
+            refreshTorrents();
+        }
+        
+        async function uploadSingle(hash, name, size) {
+            if (!confirm(`确定要上传种子 "${name}" 到云盘吗？`)) return;
+            
+            try {
+                const res = await fetch('/api/qb/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hash, name, size })
+                });
+                const data = await res.json();
+                alert(data.message);
+            } catch (err) {
+                alert('上传失败: ' + err.message);
+            }
+        }
+        
+        async function uploadSelected() {
+            if (selectedTorrents.size === 0) {
+                alert('请先选择要上传的种子');
+                return;
+            }
+            
+            if (!confirm(`确定要上传选中的 ${selectedTorrents.size} 个种子吗？`)) return;
+            
+            const selected = allTorrents.filter(t => selectedTorrents.has(t.hash));
+            let success = 0;
+            
+            for (const t of selected) {
+                try {
+                    await fetch('/api/qb/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hash: t.hash, name: t.name, size: t.size })
+                    });
+                    success++;
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+            
+            alert(`已提交 ${success}/${selected.length} 个上传任务`);
+            selectedTorrents.clear();
+            refreshTorrents();
+        }
+        
+        async function deleteTorrent(hash) {
+            if (!confirm('确定要删除此种子及其文件吗？')) return;
+            // 实现删除逻辑
+            alert('删除功能待实现');
+        }
+        
+        // 上传历史
+        async function refreshHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const data = await res.json();
+                displayHistory(data.history, data.stats);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        
+        function displayHistory(history, stats) {
+            document.getElementById('hist-total').textContent = stats.total || 0;
+            document.getElementById('hist-success').textContent = stats.upload_success || 0;
+            document.getElementById('hist-exists').textContent = stats.cloud_exists || 0;
+            document.getElementById('hist-complete').textContent = stats.complete || 0;
+            
+            const list = document.getElementById('historyList');
+            if (!history || history.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">暂无记录</div>';
+                return;
+            }
+            
+            list.innerHTML = history.map(h => `
+                <div class="history-item">
+                    <div class="history-name">${h.torrent_name}</div>
+                    <div class="history-status">
+                        <span class="status-badge ${h.upload_status === 'completed' ? 'badge-success' : 'badge-warning'}">
+                            上传: ${h.upload_status}
+                        </span>
+                        <span class="status-badge ${h.cloud_check_status === 'exists' ? 'badge-success' : 'badge-info'}">
+                            云盘: ${h.cloud_check_status}
+                        </span>
+                        ${h.is_complete ? '<span class="status-badge badge-success">✓ 完整链路</span>' : '<span class="status-badge badge-warning">⏳ 未完成</span>'}
+                    </div>
+                    <div style="margin-top: 8px; font-size: 11px; color: #999;">
+                        ${h.created_at}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 配置管理
+        async function loadConfigs() {
+            try {
+                const [qbRes, alistRes, sysRes] = await Promise.all([
+                    fetch('/api/config/qb'),
+                    fetch('/api/config/alist'),
+                    fetch('/api/config/system')
+                ]);
+                
+                const qbData = await qbRes.json();
+                const alistData = await alistRes.json();
+                const sysData = await sysRes.json();
+                
+                displayQBConfigs(qbData.configs);
+                displayAlistConfigs(alistData.configs);
+                
+                document.getElementById('seedHours').value = sysData.config.seed_hours || 72;
+                document.getElementById('diskThreshold').value = sysData.config.disk_threshold_gb || 50;
+                document.getElementById('monitorInterval').value = sysData.config.monitor_interval || 60;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        
+        function displayQBConfigs(configs) {
+            const list = document.getElementById('qbConfigList');
+            list.innerHTML = configs.map(c => `
+                <div class="config-card">
+                    <div class="config-header">
+                        <span class="config-name">${c.name}</span>
+                        <div class="config-actions">
+                            <button class="btn btn-danger btn-sm" onclick="deleteQBConfig(${c.id})">删除</button>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: #666;">
+                        URL: ${c.url} | 用户: ${c.username}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function displayAlistConfigs(configs) {
+            const list = document.getElementById('alistConfigList');
+            list.innerHTML = configs.map(c => `
+                <div class="config-card">
+                    <div class="config-header">
+                        <span class="config-name">${c.name}</span>
+                        <div class="config-actions">
+                            <button class="btn btn-danger btn-sm" onclick="deleteAlistConfig(${c.id})">删除</button>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: #666;">
+                        URL: ${c.url} | 源目录: ${c.source_dir} | 目标: ${c.target_dir}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function saveSystemConfig() {
+            try {
+                await fetch('/api/config/system', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        seed_hours: document.getElementById('seedHours').value,
+                        disk_threshold_gb: document.getElementById('diskThreshold').value,
+                        monitor_interval: document.getElementById('monitorInterval').value
+                    })
+                });
+                alert('配置已保存');
+            } catch (err) {
+                alert('保存失败');
+            }
+        }
+        
+        // 磁盘监控
+        async function refreshDisk() {
+            try {
+                const res = await fetch('/api/disk/status');
+                const data = await res.json();
+                displayDisk(data);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        
+        function displayDisk(data) {
+            document.getElementById('disk-total').textContent = data.total_gb;
+            document.getElementById('disk-used').textContent = data.used_gb;
+            document.getElementById('disk-free').textContent = data.free_gb;
+            document.getElementById('disk-percent').textContent = data.percent.toFixed(1) + '%';
+            document.getElementById('diskFill').style.width = data.percent + '%';
+        }
+        
+        async function autoCleanup() {
+            if (!confirm('确定要执行自动清理吗？将删除做种时间最短的种子')) return;
+            try {
+                const res = await fetch('/api/disk/cleanup');
+                const data = await res.json();
+                alert(data.message);
+                refreshDisk();
+            } catch (err) {
+                alert('清理失败');
+            }
+        }
+        
+        // 日志管理
+        async function refreshLogs() {
+            try {
+                const res = await fetch('/api/logs?lines=100');
+                const data = await res.json();
+                displayLogs(data.logs);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        
+        function displayLogs(logs) {
+            const container = document.getElementById('logContainer');
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">暂无日志</div>';
+                return;
+            }
+            
+            container.innerHTML = logs.map(line => `<div>${line}</div>`).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">日志已清空</div>';
+        }
+        
+        // 初始化
+        window.onload = function() {
+            getStatus();
+            refreshTorrents();
+            setInterval(getStatus, 5000);
+        };
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UP-139 媒体上传监控</title>
     <style>
         * {
