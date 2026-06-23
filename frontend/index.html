@@ -396,6 +396,72 @@
         </div>
     </div>
     
+    <!-- 模态框：添加qBittorrent -->
+    <div id="modal-qb" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:30px; border-radius:16px; width:90%; max-width:500px;">
+            <h3 style="margin-bottom:20px;">添加qBittorrent配置</h3>
+            <div class="form-group">
+                <label class="form-label">名称</label>
+                <input type="text" class="form-input" id="qb-name" placeholder="例如：主下载器">
+            </div>
+            <div class="form-group">
+                <label class="form-label">URL</label>
+                <input type="text" class="form-input" id="qb-url" placeholder="例如：http://localhost:8080">
+            </div>
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" class="form-input" id="qb-username" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-input" id="qb-password" placeholder="adminadmin">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn" onclick="closeModal('modal-qb')" style="background:#e0e0e0;">取消</button>
+                <button class="btn btn-primary" onclick="submitQBConfig()">添加</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 模态框：添加Alist -->
+    <div id="modal-alist" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:white; padding:30px; border-radius:16px; width:90%; max-width:500px;">
+            <h3 style="margin-bottom:20px;">添加Alist配置</h3>
+            <div class="form-group">
+                <label class="form-label">名称</label>
+                <input type="text" class="form-input" id="alist-name" placeholder="例如：主云盘">
+            </div>
+            <div class="form-group">
+                <label class="form-label">URL</label>
+                <input type="text" class="form-input" id="alist-url" placeholder="例如：http://134.185.85.200:5243">
+            </div>
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" class="form-input" id="alist-username" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-input" id="alist-password" placeholder="admin.319">
+            </div>
+            <div class="form-group">
+                <label class="form-label">源目录</label>
+                <input type="text" class="form-input" id="alist-source" placeholder="/下载" value="/下载">
+            </div>
+            <div class="form-group">
+                <label class="form-label">目标目录（待整理）</label>
+                <input type="text" class="form-input" id="alist-target" placeholder="/中国移动云盘/影视/待整理" value="/中国移动云盘/影视/待整理">
+            </div>
+            <div class="form-group">
+                <label class="form-label">已整理目录</label>
+                <input type="text" class="form-input" id="alist-organized" placeholder="/中国移动云盘/影视/已整理" value="/中国移动云盘/影视/已整理">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn" onclick="closeModal('modal-alist')" style="background:#e0e0e0;">取消</button>
+                <button class="btn btn-primary" onclick="submitAlistConfig()">添加</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // 全局变量
         let allTorrents = [];
@@ -466,18 +532,31 @@
                 const url = filter ? `/api/qb/torrents?filter=${filter}` : '/api/qb/torrents';
                 const res = await fetch(url);
                 const data = await res.json();
-                allTorrents = data.torrents || [];
-                displayTorrents(allTorrents);
+                
+                if (data.error) {
+                    document.getElementById('torrentList').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #e74c3c;">
+                            <div style="font-size: 18px; margin-bottom: 10px;">⚠️ ${data.error}</div>
+                            <div style="font-size: 14px; color: #999;">当前配置: ${data.config}</div>
+                            <div style="font-size: 14px; color: #999; margin-top: 10px;">请检查qBittorrent配置是否正确，或前往配置管理添加新的qBittorrent实例</div>
+                        </div>
+                    `;
+                    allTorrents = [];
+                } else {
+                    allTorrents = data.torrents || [];
+                    displayTorrents(allTorrents);
+                }
                 updateTorrentStats();
             } catch (err) {
                 console.error(err);
+                document.getElementById('torrentList').innerHTML = '<div style="text-align: center; padding: 40px; color: #e74c3c;">加载失败: ' + err.message + '</div>';
             }
         }
         
         function displayTorrents(torrents) {
             const list = document.getElementById('torrentList');
             if (!torrents || torrents.length === 0) {
-                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">暂无种子</div>';
+                list.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;"><div style="font-size: 18px; margin-bottom: 10px;">📭 暂无种子</div><div style="font-size: 14px;">qBittorrent中当前没有种子任务</div></div>';
                 return;
             }
             
@@ -640,6 +719,10 @@
         
         function displayQBConfigs(configs) {
             const list = document.getElementById('qbConfigList');
+            if (!configs || configs.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">暂无配置</div>';
+                return;
+            }
             list.innerHTML = configs.map(c => `
                 <div class="config-card">
                     <div class="config-header">
@@ -657,6 +740,10 @@
         
         function displayAlistConfigs(configs) {
             const list = document.getElementById('alistConfigList');
+            if (!configs || configs.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">暂无配置</div>';
+                return;
+            }
             list.innerHTML = configs.map(c => `
                 <div class="config-card">
                     <div class="config-header">
@@ -1260,6 +1347,122 @@
             ws.onerror = function(err) {
                 console.error('WebSocket错误:', err);
             };
+        }
+        
+        // 模态框控制
+        function showAddQBForm() {
+            document.getElementById('modal-qb').style.display = 'block';
+        }
+        
+        function showAddAlistForm() {
+            document.getElementById('modal-alist').style.display = 'block';
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        async function submitQBConfig() {
+            const name = document.getElementById('qb-name').value;
+            const url = document.getElementById('qb-url').value;
+            const username = document.getElementById('qb-username').value;
+            const password = document.getElementById('qb-password').value;
+            
+            if (!name || !url || !username || !password) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/config/qb', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url, username, password })
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    alert('qBittorrent配置添加成功');
+                    closeModal('modal-qb');
+                    loadConfigs();
+                    // 清空表单
+                    document.getElementById('qb-name').value = '';
+                    document.getElementById('qb-url').value = '';
+                    document.getElementById('qb-username').value = '';
+                    document.getElementById('qb-password').value = '';
+                } else {
+                    alert('添加失败: ' + (data.detail || '未知错误'));
+                }
+            } catch (err) {
+                alert('添加失败: ' + err.message);
+            }
+        }
+        
+        async function submitAlistConfig() {
+            const name = document.getElementById('alist-name').value;
+            const url = document.getElementById('alist-url').value;
+            const username = document.getElementById('alist-username').value;
+            const password = document.getElementById('alist-password').value;
+            const source_dir = document.getElementById('alist-source').value;
+            const target_dir = document.getElementById('alist-target').value;
+            const organized_dir = document.getElementById('alist-organized').value;
+            
+            if (!name || !url || !username || !password) {
+                alert('请填写所有必填字段');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/config/alist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url, username, password, source_dir, target_dir, organized_dir })
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    alert('Alist配置添加成功');
+                    closeModal('modal-alist');
+                    loadConfigs();
+                    // 清空表单
+                    document.getElementById('alist-name').value = '';
+                    document.getElementById('alist-url').value = '';
+                    document.getElementById('alist-username').value = '';
+                    document.getElementById('alist-password').value = '';
+                } else {
+                    alert('添加失败: ' + (data.detail || '未知错误'));
+                }
+            } catch (err) {
+                alert('添加失败: ' + err.message);
+            }
+        }
+        
+        async function deleteQBConfig(id) {
+            if (!confirm('确定要删除此qBittorrent配置吗？')) return;
+            try {
+                const res = await fetch(`/api/config/qb/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('删除成功');
+                    loadConfigs();
+                }
+            } catch (err) {
+                alert('删除失败');
+            }
+        }
+        
+        async function deleteAlistConfig(id) {
+            if (!confirm('确定要删除此Alist配置吗？')) return;
+            try {
+                const res = await fetch(`/api/config/alist/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    alert('删除成功');
+                    loadConfigs();
+                }
+            } catch (err) {
+                alert('删除失败');
+            }
         }
         
         // 初始化

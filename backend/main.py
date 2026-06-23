@@ -213,14 +213,19 @@ class QBClient:
 @app.get("/api/qb/torrents")
 async def get_torrents(qb_config_id: int = 1, filter: str = None):
     """获取种子列表"""
-    configs = db.get_qb_configs()
-    config = next((c for c in configs if c['id'] == qb_config_id), None)
-    if not config:
-        raise HTTPException(status_code=404, detail="qBittorrent配置不存在")
-    
-    qb = QBClient(config['url'], config['username'], config['password'])
-    torrents = qb.get_torrents(filter)
-    return {"torrents": torrents}
+    try:
+        configs = db.get_qb_configs()
+        config = next((c for c in configs if c['id'] == qb_config_id), None)
+        if not config:
+            raise HTTPException(status_code=404, detail="qBittorrent配置不存在")
+        
+        qb = QBClient(config['url'], config['username'], config['password'])
+        torrents = qb.get_torrents(filter)
+        return {"torrents": torrents, "config": config['name']}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"torrents": [], "error": f"连接qBittorrent失败: {str(e)}", "config": "未知"}
 
 @app.post("/api/qb/upload")
 async def upload_torrent(data: dict):
