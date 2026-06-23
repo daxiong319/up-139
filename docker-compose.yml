@@ -7,13 +7,12 @@ services:
     ports:
       - "33303:33303"
     volumes:
-      # 持久化数据
+      # 持久化数据目录
       - ./data:/app/data
-      - ./backend/media_monitor.log:/app/backend/media_monitor.log
-      - ./backend/processed_torrents.json:/app/backend/processed_torrents.json
-      - ./backend/media_monitor_notify.txt:/app/backend/media_monitor_notify.txt
     environment:
       - TZ=Asia/Shanghai
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     networks:
       - up139-network

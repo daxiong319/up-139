@@ -17,7 +17,8 @@ import re
 from datetime import datetime
 
 # ============ 配置 ============
-QB_URL = "http://localhost:8080"
+# 容器内访问宿主机服务需要使用 host.docker.internal 或宿主机IP
+QB_URL = "http://host.docker.internal:8080"  # 或者使用 http://172.17.0.1:8080
 QB_USER = "admin"
 QB_PASS = "adminadmin"
 
@@ -33,9 +34,9 @@ COPY_CHECK_INTERVAL = 30   # 检查复制任务间隔（秒）
 MAX_COPY_WAIT = 1800       # 最大等待复制时间（秒）
 SEEDING_MAX_DAYS = 3       # 做种超过此天数自动删除
 
-PROCESSED_FILE = "/root/.hermes/scripts/processed_torrents.json"
-LOG_FILE = "/root/.hermes/scripts/media_monitor.log"
-NOTIFY_FILE = "/root/.hermes/scripts/media_monitor_notify.txt"
+PROCESSED_FILE = "/app/data/processed_torrents.json"
+LOG_FILE = "/app/data/media_monitor.log"
+NOTIFY_FILE = "/app/data/media_monitor_notify.txt"
 
 ORGANIZED_DIR = "/中国移动云盘/影视/已整理"
 ORGANIZE_CHECK_INTERVAL = 300   # 检查整理结果的间隔（秒）

@@ -12,6 +12,7 @@ import asyncio
 import json
 import os
 import signal
+import threading
 from datetime import datetime
 from typing import Optional
 
@@ -22,9 +23,39 @@ monitor_process: Optional[subprocess.Popen] = None
 monitor_running = False
 
 SCRIPT_PATH = "/app/backend/media_upload_monitor.py"
-LOG_FILE = "/app/backend/media_monitor.log"
-PROCESSED_FILE = "/app/backend/processed_torrents.json"
-NOTIFY_FILE = "/app/backend/media_monitor_notify.txt"
+LOG_FILE = "/app/data/media_monitor.log"
+PROCESSED_FILE = "/app/data/processed_torrents.json"
+NOTIFY_FILE = "/app/data/media_monitor_notify.txt"
+
+def read_process_output(proc):
+    """后台线程：持续读取进程输出"""
+    try:
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            line = line.strip()
+            # 跳过已经带时间戳的日志行（监控脚本已输出）
+            if line.startswith('[') and len(line) > 20 and line[1:5].isdigit():
+                continue
+            if line:
+                # 写入日志文件
+                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with open(LOG_FILE, "a", encoding="utf-8") as f:
+                    f.write(f"[{ts}] {line}\n")
+    except Exception as e:
+        print(f"读取进程输出异常: {e}")
+
+def log(msg):
+    """记录日志"""
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] {msg}"
+    print(line, flush=True)
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except:
+        pass
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="/app/frontend"), name="static")
@@ -41,8 +72,13 @@ async def get_status():
     
     # 检查进程是否还在运行
     if monitor_running and monitor_process:
-        if monitor_process.poll() is not None:
+        poll_result = monitor_process.poll()
+        if poll_result is not None:
+            # 进程已退出
             monitor_running = False
+            if poll_result != 0:
+                # 非正常退出，记录错误码
+                log(f"监控进程异常退出，错误码: {poll_result}")
     
     return {
         "running": monitor_running,
@@ -60,14 +96,22 @@ async def start_monitor():
     
     try:
         monitor_process = subprocess.Popen(
-            ["python3", SCRIPT_PATH],
+            ["python3", "-u", SCRIPT_PATH],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
+            bufsize=1
         )
         monitor_running = True
+        log(f"监控服务已启动，PID: {monitor_process.pid}")
+        
+        # 启动后台线程读取输出
+        output_thread = threading.Thread(target=read_process_output, args=(monitor_process,), daemon=True)
+        output_thread.start()
+        
         return {"status": "started", "message": f"监控服务已启动，PID: {monitor_process.pid}"}
     except Exception as e:
+        log(f"启动监控服务失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"启动失败: {str(e)}")
 
 @app.post("/api/stop")
